@@ -1,135 +1,47 @@
-#include <windows.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
+#include "include/SDL2/SDL.h"
+#include <stdio.h>
 
-LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+/*
+ INFO VIKTIGT: fatta varför man måste ha .dll filen för att det ska fungera. 
+ man måste också ha -lmingw32 för att det ska fungera det måste jag också fatta samt -l och vad det gör
+ inte -L och -I för det fattar jag men -l är fortfarande lite konstigt
+*/
 
-// Helper function to set up the OpenGL rendering context
-void EnableOpenGL(HWND hWnd, HDC *hDC, HGLRC *hRC) {
-    PIXELFORMATDESCRIPTOR pfd;
-    int format;
+int main(int argc, char* argv[]) {
+    // Initialize SDL
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        fprintf(stderr, "SDL_Init Error: %s\n", SDL_GetError());
+        return 1; // Return an error code
+    }
 
-    // Get the device context (DC)
-    *hDC = GetDC(hWnd);
+    // Create a window
+    SDL_Window* window = SDL_CreateWindow("SDL2 Window", 
+                                          SDL_WINDOWPOS_CENTERED, 
+                                          SDL_WINDOWPOS_CENTERED, 
+                                          800, 600, 
+                                          SDL_WINDOW_ALLOW_HIGHDPI);
 
-    // Set the pixel format for the DC
-    ZeroMemory(&pfd, sizeof(pfd));
-    pfd.nSize = sizeof(pfd);
-    pfd.nVersion = 1;
-    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-    pfd.iPixelType = PFD_TYPE_RGBA;
-    pfd.cColorBits = 24;
-    pfd.cDepthBits = 16;
-    pfd.iLayerType = PFD_MAIN_PLANE;
-    format = ChoosePixelFormat(*hDC, &pfd);
-    SetPixelFormat(*hDC, format, &pfd);
+    if (window == NULL) {
+        fprintf(stderr, "SDL_CreateWindow Error: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1; // Return an error code
+    }
 
-    // Create and enable the OpenGL rendering context (RC)
-    *hRC = wglCreateContext(*hDC);
-    wglMakeCurrent(*hDC, *hRC);
-}
-
-// Helper function to clean up the OpenGL rendering context
-void DisableOpenGL(HWND hWnd, HDC hDC, HGLRC hRC) {
-    wglMakeCurrent(NULL, NULL);
-    wglDeleteContext(hRC);
-    ReleaseDC(hWnd, hDC);
-}
-
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    WNDCLASS wc;
-    HWND hWnd;
-    HDC hDC;
-    HGLRC hRC;
-    MSG msg;
-    BOOL quit = FALSE;
-    float theta = 0.0f;
-
-    // Register window class
-    wc.style = CS_OWNDC;
-    wc.lpfnWndProc = WindowProc;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
-    wc.hInstance = hInstance;
-    wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-    wc.lpszMenuName = NULL;
-    wc.lpszClassName = "OpenGLWinClass";
-    RegisterClass(&wc);
-
-    // Create the window
-    hWnd = CreateWindow(
-        "OpenGLWinClass", "OpenGL Window",
-        WS_CAPTION | WS_POPUPWINDOW | WS_VISIBLE,
-        100, 100, 640, 480,
-        NULL, NULL, hInstance, NULL);
-
-    // Enable OpenGL for the window
-    EnableOpenGL(hWnd, &hDC, &hRC);
-
-    // Program main loop
-    while (!quit) {
-        // Check for messages
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-            // Handle or dispatch messages
-            if (msg.message == WM_QUIT) {
-                quit = TRUE;
-            } else {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
+    // Event loop
+    SDL_Event event;
+    int running = 1;
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = 0; // Exit the loop if the window is closed
             }
-        } else {
-            // OpenGL rendering code here
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            // Rotate a simple triangle
-            glPushMatrix();
-            glRotatef(theta, 0.0f, 0.0f, 1.0f);
-            glBegin(GL_TRIANGLES);
-            glColor3f(1.0f, 0.0f, 0.0f);
-            glVertex2f(-0.5f, -0.5f);
-            glColor3f(0.0f, 1.0f, 0.0f);
-            glVertex2f(0.5f, -0.5f);
-            glColor3f(0.0f, 0.0f, 1.0f);
-            glVertex2f(0.0f, 0.5f);
-            glEnd();
-            glPopMatrix();
-
-            SwapBuffers(hDC);
-
-            // Update rotation angle
-            theta += 1.0f;
-            Sleep(10);
         }
+
+        // Optionally, you can add rendering code here
     }
 
-    // Shutdown OpenGL
-    DisableOpenGL(hWnd, hDC, hRC);
-
-    // Destroy the window explicitly
-    DestroyWindow(hWnd);
-
-    return msg.wParam;
-}
-
-// Window procedure
-LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    switch (message) {
-        case WM_CLOSE:
-            PostQuitMessage(0);
-            break;
-        case WM_DESTROY:
-            return 0;
-        case WM_KEYDOWN:
-            switch (wParam) {
-                case VK_ESCAPE:
-                    PostQuitMessage(0);
-                    break;
-            }
-            break;
-        default:
-            return DefWindowProc(hWnd, message, wParam, lParam);
-    }
-    return 0;
+    // Clean up
+    SDL_DestroyWindow(window);
+    SDL_Quit(); // Quit SDL
+    return 0; // Successful exit
 }
